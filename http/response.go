@@ -58,11 +58,6 @@ func writeResponse(conn net.Conn, r Response) error {
 	return nil
 }
 
-func writeLn(conn net.Conn, bytes []byte) error {
-	bytes = append(bytes, CRLF...)
-	return write(conn, bytes)
-}
-
 func write(conn net.Conn, bytes []byte) error {
 	if len(bytes) == 0 {
 		return nil

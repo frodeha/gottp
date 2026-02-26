@@ -12,6 +12,17 @@ type Buffer struct {
 
 	bytes  int
 	cursor int
+
+	it int
+}
+
+func (b *Buffer) Read(dest []byte) (int, error) {
+	if b.bytes-b.cursor > 0 {
+		n := copy(dest, b.buf[b.cursor:b.bytes])
+		b.cursor += n
+		return n, nil
+	}
+	return b.r.Read(dest)
 }
 
 func (b *Buffer) ReadString(delim []byte) (string, error) {
@@ -60,7 +71,12 @@ func (b *Buffer) ReadString(delim []byte) (string, error) {
 }
 
 func (b *Buffer) SetReader(r io.Reader) {
+	b.Reset()
 	b.r = r
+}
+
+func (b *Buffer) Reset() {
+	b.r = nil
 	b.cursor = 0
 	b.bytes = 0
 }

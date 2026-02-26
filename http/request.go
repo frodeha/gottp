@@ -2,6 +2,8 @@ package http
 
 import (
 	"fmt"
+	"io"
+	"strconv"
 	"strings"
 
 	"github.com/frodeha/gottp/buffer"
@@ -17,7 +19,7 @@ type Request struct {
 
 type Headers map[string]string
 
-func parseRequest(r *buffer.BytesBuffer) (Request, error) {
+func parseRequest(r *buffer.Buffer) (Request, error) {
 	var (
 		req Request
 	)
@@ -71,5 +73,21 @@ func parseRequest(r *buffer.BytesBuffer) (Request, error) {
 		req.Headers[name] = value
 	}
 
+	contentLength, ok := req.Headers["content-length"]
+	if !ok {
+		return req, nil
+	}
+
+	i, err := strconv.Atoi(contentLength)
+	if err != nil {
+		return req, err
+	}
+
+	body := make([]byte, i) // Sketchy!
+	_, err = io.ReadFull(r, body)
+	if err != nil {
+		return req, err
+	}
+	req.Body = body
 	return req, nil
 }

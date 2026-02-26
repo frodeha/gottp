@@ -1,10 +1,12 @@
 package http
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
 	"strconv"
+	"time"
 
 	"github.com/frodeha/gottp/buffer"
 )
@@ -14,13 +16,14 @@ var (
 )
 
 type Server struct {
-	lis    net.Listener
-	reader *buffer.Buffer
+	lis  net.Listener
+	pool *buffer.BufferPool
 }
 
 func NewServer(listener net.Listener) *Server {
 	return &Server{
-		lis: listener,
+		lis:  listener,
+		pool: buffer.NewBufferPool(10),
 	}
 }
 
@@ -51,21 +54,20 @@ const (
 	HTTP1_1 = "HTTP/1.1"
 )
 
-func (s *Server) loanBufferReader() *buffer.Buffer {
-	if s.reader == nil {
-		s.reader = buffer.New()
-	}
-	return s.reader
-}
-
 func (s *Server) handle(conn net.Conn) {
 	fmt.Printf("[server]: handling connection from %s\n", conn.RemoteAddr())
 	defer conn.Close()
 
-	reader := s.loanBufferReader()
-	reader.SetReader(conn)
+	buffer, err := s.pool.AcquireBuffer(context.Background())
+	if err != nil {
+		fmt.Printf("[server]: error while parsing request from %s: %s\n", conn.RemoteAddr(), err)
+		return
+	}
+	defer s.pool.ReleaseBuffer(context.Background(), buffer)
 
-	req, err := parseRequest(reader)
+	conn.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
+	buffer.SetReader(conn)
+	req, err := parseRequest(buffer)
 	if err != nil {
 		fmt.Printf("[server]: error while parsing request from %s: %s\n", conn.RemoteAddr(), err)
 		return
